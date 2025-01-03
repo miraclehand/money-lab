@@ -1,0 +1,31 @@
+services:
+  mongo:
+    image: mongo:latest
+    container_name: mongo-container
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+
+  price_collector:
+    build:
+      context: ./price-collector
+      dockerfile: Dockerfile
+    container_name: price_collector
+    depends_on:
+      - mongo
+    environment:
+      - CONNECTION_ALIAS=stockdb
+      - MONGO_URI=mongodb://mongo-container:27017/stockdb
+      - COLLECTOR_IP=0.0.0.0
+      - COLLECTOR_PORT=37967
+      - COLLECTOR_SERVER_NAME=localhost:37967
+      - SESSION_COOKIE_DOMAIN=localhost:37967
+    volumes:
+      - ./price-collector:/app
+    ports:
+      - "37967:37967"
+
+
+volumes:
+  mongodb_data:
