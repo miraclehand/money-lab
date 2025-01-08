@@ -7,6 +7,28 @@ services:
     volumes:
       - mongodb_data:/data/db
 
+  redis:
+    image: "redis:alpine"
+    container_name: redis-container
+    ports:
+      - "6379:6379"
+
+  price_collector_celery:
+    build:
+      context: ./price-collector
+    container_name: price_collector_celery
+    depends_on:
+      - mongo
+      - redis
+    environment:
+      - CONNECTION_ALIAS=${CONNECTION_ALIAS}
+      - MONGO_URI=${MONGO_URI}
+      - CELERY_BROKER_URL=${CELERY_BROKER_URL}
+      - CELERY_RESULT_BACKEND=${CELERY_RESULT_BACKEND}
+    command: bash -c "watchmedo auto-restart --directory=./app/celery_worker --pattern='*.py' --recursive -- celery -A app.celery_worker.worker worker --loglevel=info --pool=solo"
+    volumes:
+      - ./price-collector:/app
+
   price_collector:
     build:
       context: ./price-collector
@@ -15,17 +37,18 @@ services:
     depends_on:
       - mongo
     environment:
-      - CONNECTION_ALIAS=stockdb
-      - MONGO_URI=mongodb://mongo-container:27017/stockdb
-      - COLLECTOR_IP=0.0.0.0
-      - COLLECTOR_PORT=37967
-      - COLLECTOR_SERVER_NAME=localhost:37967
-      - SESSION_COOKIE_DOMAIN=localhost:37967
+      - CONNECTION_ALIAS=${CONNECTION_ALIAS}
+      - MONGO_URI=${MONGO_URI}
+      - CELERY_BROKER_URL=${CELERY_BROKER_URL}
+      - CELERY_RESULT_BACKEND=${CELERY_RESULT_BACKEND}
+      - COLLECTOR_IP=${COLLECTOR_IP}
+      - COLLECTOR_PORT=${COLLECTOR_PORT}
+      - COLLECTOR_SERVER_NAME=${COLLECTOR_SERVER_NAME}
+      - SESSION_COOKIE_DOMAIN=${SESSION_COOKIE_DOMAIN}
     volumes:
       - ./price-collector:/app
     ports:
       - "37967:37967"
-
 
 volumes:
   mongodb_data:

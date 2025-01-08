@@ -2,9 +2,9 @@ import requests
 from .stock_fetcher import StockFetcher
 
 class StockFetcherUS(StockFetcher):
-    def fetch_stock_data(self, stock_code: str):
+    def fetch_stock_data(self, ticker: str):
         api_key = "your_alpha_vantage_api_key"
-        url = f"https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol={stock_code}&apikey={api_key}"
+        url = f"https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol={ticker}&apikey={api_key}"
         response = requests.get(url)
         
         if response.status_code == 200:
@@ -12,13 +12,15 @@ class StockFetcherUS(StockFetcher):
             if "Time Series (Daily)" in data:
                 latest_data = list(data["Time Series (Daily)"].values())[0]
                 stock_data = {
-                    'code': stock_code,
+                    'ticker': ticker,
                     'name': "Apple Inc.",
                     'price': float(latest_data["4. close"])
                 }
                 return stock_data
             else:
-                raise Exception(f"Error in fetching data for {stock_code}: {data}")
+                raise Exception(f"Error in fetching data for {ticker}: {data}")
         else:
-            raise Exception(f"Failed to fetch data for {stock_code}")
+            raise Exception(f"Failed to fetch data for {ticker}")
 
+    def fetch_and_upsert_stock_data(self, ticker: str):
+        pass

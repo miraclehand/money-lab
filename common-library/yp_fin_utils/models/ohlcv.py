@@ -12,26 +12,26 @@ class Ohlcv(EmbeddedMongoModel):
     change= fields.FloatField()
     log   = fields.FloatField()
 
-    def __init__(self, date=None, newone=None, **kwargs):
+    def __init__(self, newone=None, **kwargs):
         super().__init__(**kwargs)
 
         if newone is None:
             return
 
-        self.date  = date
-        self.close = newone['close']
-        self.open  = newone['open']
-        self.high  = newone['high']
-        self.low   = newone['low']
-        self.volume= newone['volume']
-        self.diff  = newone['diff']
-        self.change= newone['change']
-        self.log   = newone['log']
+        self.date  = newone.get('date')
+        self.close = newone.get('close')
+        self.open  = newone.get('open')
+        self.high  = newone.get('high')
+        self.low   = newone.get('low')
+        self.volume= newone.get('volume')
+        self.diff  = newone.get('diff')
+        self.change= newone.get('change')
+        self.log   = newone.get('log')
 
     @property
     def to_dict(self):
         return {
-            'date'  : self.date.date(),
+            'date'  : self.date.date().isoformat(),
             'close' : self.close,
             'open'  : self.open,
             'high'  : self.high,

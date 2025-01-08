@@ -1,7 +1,7 @@
 import os
-from app import create_app
+from app import run_app
 
-app = create_app()
+app = run_app()
 
 if __name__ == '__main__':
     host = os.getenv('COLLECTOR_IP', 'localhost')

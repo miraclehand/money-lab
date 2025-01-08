@@ -2,7 +2,9 @@ import requests
 import re
 import asyncio
 import aiohttp
-from yp_fin_utils.parsers.parsers import get_value_from_text
+from datetime import datetime
+from pymodm.errors import DoesNotExist
+from yp_fin_utils.parsers.parsers import extract_between_markers
 from yp_fin_utils.utils.utils import disassemble_hangul
 from yp_fin_utils.models.stock import StockKR
 from .stock_fetcher import StockFetcher
@@ -54,13 +56,13 @@ class StockFetcherKR(StockFetcher):
 
     def _parse_group_stocks(self, html: str) -> tuple:
         start_tag, end_tag = 'style="padding-left:10px;">', '</td>'
-        group_name = get_value_from_text(html, start_tag, end_tag)
+        group_name = extract_between_markers(html, start_tag, end_tag)
         regex = '<a href="/item/main.naver\?code=(.*)">(.*)</a>'
         stock_list = re.findall(regex, html)
 
         return group_name, stock_list
 
-    def fetch_stock_data(self) -> list:
+    def fetch_stock_data(self, ticker: str = None) -> list:
         """Fetchs stock data for all KOSPI and KOSDAQ stock asynchronously."""
         self.group_stocks = self.fetch_stock_group()
 
@@ -76,15 +78,32 @@ class StockFetcherKR(StockFetcher):
 
         return stock_pages
 
-    def fetch_stock_data_then_save(self):
+    def fetch_and_upsert_stock_data(self, ticker):
         """Fetch stock data and save to the database in bulk."""
+        today = datetime.now().date()
+
         try:
-            fetched_stock_data = self.fetch_stock_data()
-            for stock_data_list in fetched_stock_data:
+            stock_data_fetched = self.fetch_stock_data(ticker)
+            for stock_data_list in stock_data_fetched:
                 if not stock_data_list:
                     continue
-                stock_objects = [StockKR(stock) for stock in stock_data_list]
-                StockKR.objects.bulk_create(stock_objects)
+                for stock_data in stock_data_list:
+                    if not stock_data:
+                        continue
+                    
+                    StockKR.objects.raw({'ticker': stock_data.get('ticker')}).update({
+                        '$set': {'cntry'   : stock_data.get('cntry'),
+                                 'name'    : stock_data.get('name'),
+                                 'dname'   : stock_data.get('dname'),
+                                 'label'   : stock_data.get('label'),
+                                 'exchange': stock_data.get('exchange'),
+                                 'sector'  : stock_data.get('sector'),
+                                 'industry': stock_data.get('industry'),
+                                 'capital' : stock_data.get('capital'),
+                                 'group_name': self._find_group_name(ticker),
+                                 'lastFetched' : today,
+                        }
+                    }, upsert=True)
 
         except Exception as e:
             print(f"Error occurred while saving stock data: {e}")
@@ -92,7 +111,7 @@ class StockFetcherKR(StockFetcher):
     async def _fetch_stocks_async(self, url: str) -> list:
         """Fetchs stocks from a specific URL asynchronously."""
         stocks = []
-        sosok = get_value_from_text(url, 'sosok=', '&')
+        sosok = extract_between_markers(url, 'sosok=', '&')
         exchange = 'KOSPI' if sosok == '0' else 'KOSDAQ'
 
         stock_detail_url = f'{self.base_url}/item/main.nhn?code={{}}'
@@ -106,23 +125,23 @@ class StockFetcherKR(StockFetcher):
                 stock_code_pattern ='<a href="/item/main.naver\?code=([a-zA-Z0-9]+).*>(.*)</a>'
                 stock_codes = re.findall(stock_code_pattern, html)
 
-                for code, name in stock_codes:
-                    if not code:
+                for ticker, name in stock_codes:
+                    if not ticker:
                         continue
-                    stock_details = await self._fetch_stock_detail(code, session, stock_detail_url.format(code))
+                    stock_details = await self._fetch_stock_detail(ticker, session, stock_detail_url.format(ticker))
                     stock = {
                         'country': 'kr',
-                        'code': code,
+                        'ticker': ticker,
                         'name': name,
                         'dname': disassemble_hangul(name),
-                        'label': f'{code} {name}',
+                        'label': f'{ticker} {name}',
                         'exchange': exchange,
                         **stock_details
                     }
                     stocks.append(stock)
         return stocks
 
-    async def _fetch_stock_detail(self, code: str, session: aiohttp.ClientSession, url: str) -> dict:
+    async def _fetch_stock_detail(self, ticker: str, session: aiohttp.ClientSession, url: str) -> dict:
         """Fetchs detailed stock information."""
         async with session.get(url) as response:
             html = await response.read()
@@ -132,7 +151,7 @@ class StockFetcherKR(StockFetcher):
                 'sector': details.get('sector', 'N/A'),
                 'industry': details.get('industry', 'N/A'),
                 'capital': details.get('capital', 0),
-                'group_name': self._find_group_name(code),
+                'group_name': self._find_group_name(ticker),
                 'avg_v50': 0    # Placeholder for furture candle data
             }
 
@@ -147,7 +166,7 @@ class StockFetcherKR(StockFetcher):
     def _extract_capital(self, html: str) -> int:
         """Extracts market capitalization.:"""
         start_tag, end_tag = '<em id="_market_sum">', '</em>'
-        capital_str = get_value_from_text(html, start_tag, end_tag)
+        capital_str = extract_between_markers(html, start_tag, end_tag)
 
         clean_capital_str = re.sub(r'\s+', '', capital_str)  # '\s+'는 모든 공백, 탭, 줄바꿈을 제거
         if '조' in clean_capital_str:
@@ -159,11 +178,11 @@ class StockFetcherKR(StockFetcher):
         match = re.search(r'업종명.*>(.*?)</a>', html)
         return match.group(1) if match else 'N/A'
 
-    def _find_group_name(self, code: str) -> str:
-        code = f'{code[:5]}0'
+    def _find_group_name(self, ticker: str) -> str:
+        ticker = f'{ticker[:5]}0'
         for group_name, stock_list in self.group_stocks.items():
-            for stock_code, stock_name in stock_list:
-                if stock_code == code:
+            for ticker, name in stock_list:
+                if ticker == ticker:
                     return group_name
         return 'N/A'
 
@@ -173,4 +192,4 @@ if __name__ == '__main__':
     stock_fetcher_kr = StockFetcherKR()
     #print(stock_fetcher_kr.fetch_stock_group())
     #print(stock_fetcher_kr.fetch_stock_data())
-    stock_fetcher_kr.fetch_stock_data_then_save()
+    stock_fetcher_kr.fetch_and_upsert_stock_data()

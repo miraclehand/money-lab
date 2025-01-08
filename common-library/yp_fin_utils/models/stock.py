@@ -2,12 +2,13 @@ from datetime import datetime
 from pymongo import ASCENDING
 from pymongo.operations import IndexModel
 from pymodm import fields, MongoModel
+from typing import Type, Union
 from yp_fin_utils.config.settings import CONNECTION_ALIAS
 
 
 class Stock(MongoModel):
     country  = fields.CharField(required=True)
-    code     = fields.CharField(required=True)
+    ticker   = fields.CharField(required=True)
     name     = fields.CharField(required=True)
     dname    = fields.CharField(required=True)  # disassembled name
     label    = fields.CharField(required=True)
@@ -20,8 +21,11 @@ class Stock(MongoModel):
     avg_v50  = fields.IntegerField()    #average trading value during 50days
     new_adj_close = fields.BooleanField()
     crud     = fields.CharField()   #create, read, update, delete
-    lastUpdated = fields.DateTimeField()   # update if insert or delete code
+    lastUpdated = fields.DateTimeField()   # update if insert or delete ticker
     lastFetched = fields.DateTimeField()   # fetch everyday
+
+    class Meta:
+        abstract = True
 
     def __init__(self, newone=None, **kwargs):
         super().__init__(**kwargs)
@@ -29,7 +33,7 @@ class Stock(MongoModel):
         if newone is None:
             return
         self.country    = newone.get('country', '')
-        self.code       = newone.get('code', '')
+        self.ticker     = newone.get('ticker', '')
         self.name       = newone.get('name', '')
         self.dname      = newone.get('dname', '')
         self.label      = newone.get('label', '')
@@ -50,7 +54,7 @@ class Stock(MongoModel):
         return {
             'id'  : str(self._id),
             'country': self.country,
-            'code': self.code,
+            'ticker': self.ticker,
             'name': self.name,
             'dname': self.dname,
             'label': self.label,
@@ -71,7 +75,7 @@ class StockKR(Stock):
         connection_alias = CONNECTION_ALIAS
         collection_name = 'stock_kr'
         indexes = [
-            IndexModel([('code', ASCENDING)], name='stock_kr_code_index', unique=True)
+            IndexModel([('ticker', ASCENDING)], name='stock_kr_ticker_index', unique=True)
         ]
 
     def __init__(self, newone=None, **kwargs):
@@ -82,8 +86,21 @@ class StockUS(Stock):
         connection_alias = CONNECTION_ALIAS
         collection_name = 'stock_us'
         indexes = [
-            IndexModel([('code', ASCENDING)], name='stock_us_code_index', unique=True)
+            IndexModel([('ticker', ASCENDING)], name='stock_us_ticker_index', unique=True)
         ]
 
     def __init__(self, newone=None, **kwargs):
         super().__init__(newone, **kwargs)
+
+
+# Model selector
+STOCK_MODELS = {
+    'kr': StockKR,
+    'us': StockUS
+}
+
+def get_stock_model(country: str) -> Type[Union[StockKR, StockUS]]:
+    model = STOCK_MODELS.get(country.lower())
+    if not model:
+        raise ValueError(f"Unsupported country code: {country}")
+    return model

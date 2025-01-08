@@ -1,60 +1,86 @@
 import os
+from datetime import datetime
 from pymodm import fields, MongoModel
 from pymongo import ASCENDING
 from pymongo.operations import IndexModel
-from .stock import Stock
-from .ohlcv import Ohlcv
+from typing import Type, Union
 from yp_fin_utils.config.settings import CONNECTION_ALIAS
+from yp_fin_utils.models.stock import Stock, StockKR, StockUS
+from yp_fin_utils.models.ohlcv import Ohlcv
 
 
 class Candle(MongoModel):
-    code = fields.CharField(required=True)
     stock = fields.ReferenceField(Stock, required=True)
     ohlcvs = fields.EmbeddedDocumentListField(Ohlcv, default=[])
 
-    def add_or_replace_ohlcv(self, ohlcvs):
-        new_adj_close = False
-        for i, ohlcv in enumerate(self.ohlcvs):
-            if ohlcv.date >= ohlcvs[0]['date']:
+    class Meta:
+        abstract = True
+
+    @classmethod
+    def find_by_stock(self, stock_model, ticker):
+        try:
+            return stock_model.objects.raw({'ticker':ticker}).first()
+        except Exception as e:
+            return None
+
+    @classmethod
+    def find_by_stock_and_date(self, stock_instance, candle_model, start_date, end_date):
+        if isinstance(start_date, str):
+            start_date = datetime.strptime(start_date, '%Y-%m-%d')
+        if isinstance(end_date, str):
+            end_date = datetime.strptime(end_date, '%Y-%m-%d')
+
+        return candle_model.objects.raw({
+            'stock': stock_instance._id,
+        }).project({
+            'stock': 1,  # stock 필드 유지
+            'ohlcvs': {  # ohlcvs 배열 필터링
+                '$filter': {
+                    'input': '$ohlcvs',
+                    'as': 'item',
+                    'cond': {
+                        '$and': [
+                            { '$gte': ['$$item.date', start_date] },
+                            { '$lte': ['$$item.date', end_date] }
+                        ]
+                    }
+                }
+            }
+        })
+
+    def update_ohlcv_with_adjustments(self, ohlcv_data_fetched):
+        has_price_adjustment = False
+        oldest_date_in_ohlcv_data_fetched = ohlcv_data_fetched[0]['date']
+
+        for index, ohlcv in enumerate(self.ohlcvs):
+            if ohlcv.date >= oldest_date_in_ohlcv_data_fetched:
+                insert_position = index
                 break
 
-        # 권리 때문에, 과거의 수정주가가 바뀌는 경우가 있으면
-        # 과거 주가를 다시 받아야한다
-        for idx, o in enumerate(self.ohlcvs[i:]):
-            #당일 데이터는 무조건 새로운 데이터
-            if ohlcvs[idx] == ohlcvs[-1]:
-                break
-            if o.close != ohlcvs[idx]['close']:
-                new_adj_close = True
-                break;
-        del self.ohlcvs[i:]
-        self.ohlcvs.extend([Ohlcv(ohlcv['date'],ohlcv) for ohlcv in ohlcvs])
-        return new_adj_close
-
-    def add_or_replace_ohlcv_dict(self, ohlcvs):
-        for i, ohlcv in enumerate(self.ohlcvs):
-            if ohlcv.date >= ohlcvs.index[-1].to_pydatetime():
+        # 과거 데이터 중 수정된 주가가 있는지 확인 (권리 처리 등)
+        for idx, existing_ohlcv_data in enumerate(self.ohlcvs[insert_position:]):
+            existing_date = existing_ohlcv_data.date
+            existing_close_price = existing_ohlcv_data.close
+    
+            fetched_date = ohlcv_data_fetched[idx]['date']
+            fetched_close_price = ohlcv_data_fetched[idx]['close']
+    
+            # 기존 데이터와 새 데이터의 종가(close)가 다르면 수정된 주가가 있다고 판단
+            if existing_date == fetched_date and existing_close_price != fetched_close_price:
+                has_price_adjustment = True
                 break
 
-        if i > 0:
-            del self.ohlcvs[i:]
-            self.ohlcvs.extend([Ohlcv(date, ohlcv) for date, ohlcv in ohlcvs.iterrows()])
+        del self.ohlcvs[insert_position:]
+        self.ohlcvs.extend([Ohlcv(ohlcv) for ohlcv in ohlcv_data_fetched])
 
-
-    def get_close(self, date):
-        ohlcv = list(filter(lambda ohlcv: ohlcv.date == date, self.ohlcvs))
-        if not ohlcv:
-            return 0;
-        if ohlcv.__len__() != 1:
-            return 0;
-        return ohlcv[0].close
+        return has_price_adjustment
 
     @property
     def to_dict(self):
         return {
-            'code'  : self.stock.code,
-            'name'  : self.stock.name,
-            'ohlcv' : list(self.ohlcvs),
+            'ticker': self.stock.ticker,
+            'name': self.stock.name,
+            'ohlcv': [ohlcv.to_dict for ohlcv in self.ohlcvs],
         }
 
 
@@ -65,9 +91,18 @@ class CandleKR(Candle):
         connection_alias = CONNECTION_ALIAS
         collection_name = 'candle_kr'
         indexes = [
-            IndexModel([('code', ASCENDING)], name='candle_kr_code_index',unique=True)
+            IndexModel([('stock', ASCENDING)], name='candle_kr_stock_index', unique=True)
         ]
 
+
+    @classmethod
+    def find_by_stock(self, ticker):
+        return super().find_by_stock(StockKR, ticker)
+
+    @classmethod
+    def find_by_stock_and_date(self, ticker, start_date, end_date):
+        stock_instance = StockKR.objects.raw({'ticker':ticker}).first()
+        return super().find_by_stock_and_date(stock_instance, self, start_date, end_date)
 
 class CandleUS(Candle):
     stock = fields.ReferenceField(StockUS, required=True)
@@ -76,5 +111,27 @@ class CandleUS(Candle):
         connection_alias = CONNECTION_ALIAS
         collection_name = 'candle_us'
         indexes = [
-            IndexModel([('code', ASCENDING)], name='candle_us_code_index',unique=True)
+            IndexModel([('stock', ASCENDING)], name='candle_us_stock_index', unique=True)
         ]
+
+    @classmethod
+    def find_by_stock(self, ticker):
+        return super().find_by_stock(StockUS, ticker)
+
+    @classmethod
+    def find_by_stock_and_date(self, ticker, start_date, end_date):
+        stock_instance = StockUS.objects.raw({'ticker':ticker}).first()
+        return super().find_by_stock_and_date(stock_instance, self, start_date, end_date)
+
+
+# Model selector
+CANDLE_MODELS = {
+    'kr': CandleKR,
+    'us': CandleUS
+}
+
+def get_candle_model(country: str) -> Type[Union[CandleKR, CandleUS]]:
+    model = CANDLE_MODELS.get(country.lower())
+    if not model:
+        raise ValueError(f"Unsupported country code: {country}")
+    return model
