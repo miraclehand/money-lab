@@ -4,7 +4,7 @@ from flask import Flask
 from flask_cors import CORS
 from pymodm import connect
 from apscheduler.schedulers.background import BackgroundScheduler
-from app.utils.logging import configure_logging
+from yp_fin_utils.utils.logging import configure_logging
 from app.routes import register_routes
 from app.celery_worker.tasks.stock_task import put_stock_data
 from app.celery_worker.tasks.candle_task import put_candle_data
@@ -29,7 +29,7 @@ def create_app():
 
     configure_server(app)
     setup_mongodb_connection()
-    configure_logging()
+    configure_logging('data/logs/app.log')
 
     CORS(app)
 

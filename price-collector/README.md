@@ -1,7 +1,7 @@
 curl http://localhost:37967/api/stocks/kr/005930
 
 
-curl -X POST http://localhost:37967/api/stocks/kr
+curl -X POST http://localhost:37967/jobs/candels/kr
 
 
 cp ../common-library/dist/*whl packages

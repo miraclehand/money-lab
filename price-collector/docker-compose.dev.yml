@@ -1,41 +1,36 @@
 services:
-  mongo:
-    image: mongo:latest
-    container_name: mongo-container
-    ports:
-      - "27017:27017"
-    volumes:
-      - mongodb_data:/data/db
-
   redis:
     image: "redis:alpine"
     container_name: redis-container
     ports:
       - "6379:6379"
+    networks:
+      - moneylab_db
 
   price_collector_celery:
     build:
-      context: ./price-collector
+      context: .
     container_name: price_collector_celery
     depends_on:
-      - mongo
       - redis
+    networks:
+      - moneylab_db
     environment:
       - CONNECTION_ALIAS=${CONNECTION_ALIAS}
       - MONGO_URI=${MONGO_URI}
       - CELERY_BROKER_URL=${CELERY_BROKER_URL}
       - CELERY_RESULT_BACKEND=${CELERY_RESULT_BACKEND}
-    command: bash -c "watchmedo auto-restart --directory=./app/celery_worker --pattern='*.py' --recursive -- celery -A app.celery_worker.worker worker --loglevel=info --pool=solo"
+    command: bash -c "watchmedo auto-restart --directory=./app --pattern='*.py' --recursive -- celery -A app.celery_worker.worker worker --loglevel=info --pool=solo"
     volumes:
-      - ./price-collector:/app
+      - .:/app
 
   price_collector:
     build:
-      context: ./price-collector
+      context: .
       dockerfile: Dockerfile
     container_name: price_collector
-    depends_on:
-      - mongo
+    networks:
+      - moneylab_db
     environment:
       - CONNECTION_ALIAS=${CONNECTION_ALIAS}
       - MONGO_URI=${MONGO_URI}
@@ -46,9 +41,11 @@ services:
       - COLLECTOR_SERVER_NAME=${COLLECTOR_SERVER_NAME}
       - SESSION_COOKIE_DOMAIN=${SESSION_COOKIE_DOMAIN}
     volumes:
-      - ./price-collector:/app
+      - .:/app
     ports:
-      - "37967:37967"
+      - "${COLLECTOR_PORT}:${COLLECTOR_PORT}"
 
-volumes:
-  mongodb_data:
+networks:
+  moneylab_db:
+    external: true
+

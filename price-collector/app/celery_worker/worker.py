@@ -1,7 +1,7 @@
 import os
 from pymodm import connect
+from yp_fin_utils.utils.logging import configure_logging
 from app.celery_worker.celery_config import make_celery
-from app.utils.logging import configure_logging
 
 
 def create_celery():
@@ -14,8 +14,8 @@ def create_celery():
 def setup_mongodb_connection():
     mongo_uri = os.getenv("MONGO_URI", "localhost")
     connection_alias = os.getenv("CONNECTION_ALIAS", "")
-    connect(mongo_uri, alias=connection_alias, connect=False)
+    c = connect(mongo_uri, alias=connection_alias, connect=False)
 
 setup_mongodb_connection()
-configure_logging()
+configure_logging('data/logs/app.log')
 celery = create_celery()

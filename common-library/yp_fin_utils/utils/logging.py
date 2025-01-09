@@ -1,13 +1,18 @@
+import os
 import logging
 import datetime
 from logging.handlers import RotatingFileHandler
 
 
-def configure_logging():
+def configure_logging(log_filename):
     console_handler = logging.StreamHandler()
     console_handler.setLevel(logging.INFO)
 
-    file_handler = RotatingFileHandler("data/logs/app.log", maxBytes=1024 * 1024, backupCount=3)
+    log_dir = os.path.dirname(log_filename)
+    if not os.path.exists(log_dir):
+        os.makedirs(log_dir, exist_ok=True)
+
+    file_handler = RotatingFileHandler(log_filename, maxBytes=1024 * 1024, backupCount=3)
     file_handler.setLevel(logging.INFO)
 
     formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")

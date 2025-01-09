@@ -78,9 +78,9 @@ class StockFetcherKR(StockFetcher):
 
         return stock_pages
 
-    def fetch_and_upsert_stock_data(self, ticker):
+    def fetch_and_upsert_stock_data(self, ticker: str = None):
         """Fetch stock data and save to the database in bulk."""
-        today = datetime.now().date()
+        today = datetime.now()
 
         try:
             stock_data_fetched = self.fetch_stock_data(ticker)
@@ -90,20 +90,26 @@ class StockFetcherKR(StockFetcher):
                 for stock_data in stock_data_list:
                     if not stock_data:
                         continue
-                    
-                    StockKR.objects.raw({'ticker': stock_data.get('ticker')}).update({
-                        '$set': {'cntry'   : stock_data.get('cntry'),
-                                 'name'    : stock_data.get('name'),
-                                 'dname'   : stock_data.get('dname'),
-                                 'label'   : stock_data.get('label'),
-                                 'exchange': stock_data.get('exchange'),
-                                 'sector'  : stock_data.get('sector'),
-                                 'industry': stock_data.get('industry'),
-                                 'capital' : stock_data.get('capital'),
-                                 'group_name': self._find_group_name(ticker),
-                                 'lastFetched' : today,
-                        }
-                    }, upsert=True)
+                    upsert_ticker = ticker or stock_data.get('ticker')
+
+                    if not ticker:
+                        StockKR(stock_data).save()
+                    else:
+                        StockKR.objects.raw({'ticker': upsert_ticker}).update({
+                            '$set': {'country' : stock_data.get('country'),
+                                     'name'    : stock_data.get('name'),
+                                     'dname'   : stock_data.get('dname'),
+                                     'label'   : stock_data.get('label'),
+                                     'exchange': stock_data.get('exchange'),
+                                     'sector'  : stock_data.get('sector'),
+                                     'industry': stock_data.get('industry'),
+                                     'capital' : stock_data.get('capital'),
+                                     'crud'    : 'U',
+                                     'group_name'  : self._find_group_name(upsert_ticker),
+                                     'lastUpdated' : today,
+                                     'lastFetched' : today,
+                            }
+                        }, upsert=True)
 
         except Exception as e:
             print(f"Error occurred while saving stock data: {e}")

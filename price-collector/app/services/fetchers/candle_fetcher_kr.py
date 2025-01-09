@@ -75,7 +75,7 @@ class CandleFetcherKR(CandleFetcher):
         for start in range(0, total_stocks, self.BATCH_SIZE):
             end = min(start + self.BATCH_SIZE, total_stocks)
 
-            logger.info(f"Processing batch {start + 1} to {end}")
+            logger.info(f"Processing batch {start + 1} to {end} for {total_stocks}")
             batch_stocks = stocks[start:end]
 
             urls = [self.BASE_URL.format(ticker=stock.ticker, days=days) for stock in batch_stocks]

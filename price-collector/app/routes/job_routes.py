@@ -7,7 +7,7 @@ job_routes = Blueprint('job_routes', __name__)
 
 @job_routes.route('/jobs/stocks/<string:country>', methods=['POST', 'PUT', 'DELETE'])
 @job_routes.route('/jobs/stocks/<string:country>/<string:ticker>', methods=['POST', 'PUT', 'DELETE'])
-def manage_stock_data_route(country, ticker):
+def manage_stock_data_route(country, ticker=None):
     if request.method == 'POST':
         post_stock_data.delay(country, ticker)
     elif request.method == 'PUT':
@@ -19,7 +19,7 @@ def manage_stock_data_route(country, ticker):
 
 @job_routes.route('/jobs/candles/<string:country>', methods=['POST', 'PUT', 'DELETE'])
 @job_routes.route('/jobs/candles/<string:country>/<string:ticker>', methods=['POST', 'PUT', 'DELETE'])
-def upsert_candle_data_route(country, ticker):
+def upsert_candle_data_route(country, ticker=None):
     if request.method == 'POST':
         post_candle_data.delay(country, ticker)
     elif request.method == 'PUT':

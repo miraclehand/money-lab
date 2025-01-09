@@ -1,0 +1,5 @@
+# 매일 오후 10시에 reboot한다
+# 미국 정규장시간 한국시간 23:30~06:00 (섬머타임적용 22:30~05:00)
+0 22 * * * sudo reboot
+
+@reboot . /home/ypark/Dev/MoneyLab/tmux_run.sh

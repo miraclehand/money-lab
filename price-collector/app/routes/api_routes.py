@@ -5,8 +5,9 @@ from yp_fin_utils.models.candle import get_candle_model
 
 api_routes = Blueprint('api_routes', __name__)
 
+@api_routes.route('/api/stocks/<string:country>', methods=['GET'])
 @api_routes.route('/api/stocks/<string:country>/<string:ticker>', methods=['GET'])
-def query_stock_data_route(country, ticker):
+def query_stock_data_route(country, ticker=None):
     StockModel = get_stock_model(country)
 
     query = {'crud': {'$ne': 'D'}}
