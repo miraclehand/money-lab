@@ -44,6 +44,7 @@ services:
       - .:/app
     ports:
       - "${COLLECTOR_PORT}:${COLLECTOR_PORT}"
+    command: python main.py
 
 networks:
   moneylab_db:

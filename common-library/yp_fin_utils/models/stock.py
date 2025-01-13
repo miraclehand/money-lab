@@ -100,7 +100,16 @@ STOCK_MODELS = {
 }
 
 def get_stock_model(country: str) -> Type[Union[StockKR, StockUS]]:
-    model = STOCK_MODELS.get(country.lower())
-    if not model:
+    stock_model = STOCK_MODELS.get(country.lower())
+    if not stock_model:
         raise ValueError(f"Unsupported country code: {country}")
-    return model
+    return stock_model
+
+def find_stock_by_ticker(country: str, ticker: str):
+    stock_model = get_stock_model(country)
+    stock_cursor = stock_model.objects.raw({'ticker': ticker})
+
+    if stock_cursor.count() > 0:
+        return stock_cursor.first()
+    else:
+        return None

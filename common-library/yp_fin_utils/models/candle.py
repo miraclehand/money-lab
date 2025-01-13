@@ -6,6 +6,7 @@ from pymongo.operations import IndexModel
 from typing import Type, Union
 from yp_fin_utils.config.settings import CONNECTION_ALIAS
 from yp_fin_utils.models.stock import Stock, StockKR, StockUS
+from yp_fin_utils.models.stock import find_stock_by_ticker
 from yp_fin_utils.models.ohlcv import Ohlcv
 
 
@@ -131,7 +132,28 @@ CANDLE_MODELS = {
 }
 
 def get_candle_model(country: str) -> Type[Union[CandleKR, CandleUS]]:
-    model = CANDLE_MODELS.get(country.lower())
-    if not model:
+    candle_model = CANDLE_MODELS.get(country.lower())
+    if not candle_model:
         raise ValueError(f"Unsupported country code: {country}")
-    return model
+    return candle_model
+
+def find_candle_by_stock(country: str, stock: Stock):
+    if not stock:
+        return None
+
+    candle_model = get_candle_model(country)
+    candle_cursor = candle_model.objects.raw({'stock': stock._id})
+
+    if candle_cursor.count() > 0:
+        return candle_cursor.first()
+    else:
+        return None
+
+def find_candle_by_ticker(country: str, ticker: str):
+    candle_model = get_candle_model(country)
+    stock = find_stock_by_ticker(country, ticker)
+    if not stock:
+        return None
+
+    candle = find_candle_by_stock(country, stock)
+    return candle

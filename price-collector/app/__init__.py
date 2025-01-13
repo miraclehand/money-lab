@@ -1,4 +1,5 @@
 import os
+import logging
 import datetime
 from flask import Flask
 from flask_cors import CORS
@@ -10,13 +11,16 @@ from app.celery_worker.tasks.stock_task import put_stock_data
 from app.celery_worker.tasks.candle_task import put_candle_data
 
 
+logger = logging.getLogger(__name__)
 def run_app():
     app = create_app()
+
     scheduler = initialize_scheduler()
     try:
-        scheduler.start()
-        print('scheduler.start()')
-        return app
+        # 한번만 실행하기 위해서 아래 코드 필요함.
+        if os.environ.get("WERKZEUG_RUN_MAIN") == 'true':
+            scheduler.start()
+            logger.info('scheduler.start()')
     except (KeyboardInterrupt, SystemExit):
         scheduler.shutdown()
     except Exception as e:
