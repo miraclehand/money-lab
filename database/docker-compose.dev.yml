@@ -1,17 +1,17 @@
 services:
   mongo:
     image: mongo:latest
-    container_name: mongo-container
+    container_name: ${DB_CONTAINER_NAME}
     ports:
-      - "27017:27017"
+      - "${DB_PORT}:${DB_PORT}"
     networks:
-      - moneylab_db
+      - ${NETWORK_NAME}
     volumes:
       - db_data:/data/db
 
 networks:
   moneylab_db:
-    name: moneylab_db
+    name: ${NETWORK_NAME}
     driver: bridge
 
 volumes:

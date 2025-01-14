@@ -3,7 +3,7 @@ from pymongo import ASCENDING
 from pymongo.operations import IndexModel
 from pymodm import fields, MongoModel
 from typing import Type, Union
-from yp_fin_utils.config.settings import CONNECTION_ALIAS
+from yp_fin_utils.config.settings import STOCKDB_ALIAS
 
 
 class Stock(MongoModel):
@@ -72,7 +72,7 @@ class Stock(MongoModel):
 
 class StockKR(Stock):
     class Meta:
-        connection_alias = CONNECTION_ALIAS
+        connection_alias = STOCKDB_ALIAS
         collection_name = 'stock_kr'
         indexes = [
             IndexModel([('ticker', ASCENDING)], name='stock_kr_ticker_index', unique=True)
@@ -83,7 +83,7 @@ class StockKR(Stock):
 
 class StockUS(Stock):
     class Meta:
-        connection_alias = CONNECTION_ALIAS
+        connection_alias = STOCKDB_ALIAS
         collection_name = 'stock_us'
         indexes = [
             IndexModel([('ticker', ASCENDING)], name='stock_us_ticker_index', unique=True)

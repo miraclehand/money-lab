@@ -3,8 +3,8 @@ import logging
 import datetime
 from flask import Flask
 from flask_cors import CORS
-from pymodm import connect
 from apscheduler.schedulers.background import BackgroundScheduler
+from yp_fin_utils.db.connection import setup_mongodb_connection
 from yp_fin_utils.utils.logging import configure_logging
 from app.routes import register_routes
 from app.celery_worker.tasks.stock_task import put_stock_data
@@ -32,7 +32,9 @@ def create_app():
     app = Flask(__name__)
 
     configure_server(app)
+
     setup_mongodb_connection()
+
     configure_logging('data/logs/app.log')
 
     CORS(app)
@@ -45,11 +47,6 @@ def configure_server(app):
     app.config['SESSION_COOKIE_DOMAIN'] = os.getenv('SESSION_COOKIE_DOMAIN')
     app.config['CELERY_BROKER_URL'] = os.getenv('CELERY_BROKER_URL')
     app.config['CELERY_RESULT_BACKEND'] = os.getenv('CELERY_RESULT_BACKEND')
-
-def setup_mongodb_connection():
-    mongo_uri = os.getenv("MONGO_URI", "localhost")
-    connection_alias = os.getenv("CONNECTION_ALIAS", "")
-    connect(mongo_uri, alias=connection_alias, connect=False)
 
 def initialize_scheduler():
     scheduler = BackgroundScheduler({'apscheduler.timezone': 'Asia/Seoul'})

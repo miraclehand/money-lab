@@ -5,7 +5,7 @@ services:
     ports:
       - "6379:6379"
     networks:
-      - moneylab_db
+      - ${NETWORK_NAME}
 
   price_collector_celery:
     build:
@@ -14,10 +14,10 @@ services:
     depends_on:
       - redis
     networks:
-      - moneylab_db
+      - ${NETWORK_NAME}
     environment:
-      - CONNECTION_ALIAS=${CONNECTION_ALIAS}
-      - MONGO_URI=${MONGO_URI}
+      - MONGO_BASE_URI=${MONGO_BASE_URI}
+      - STOCKDB_ALIAS=${STOCKDB_ALIAS}
       - CELERY_BROKER_URL=${CELERY_BROKER_URL}
       - CELERY_RESULT_BACKEND=${CELERY_RESULT_BACKEND}
     command: bash -c "watchmedo auto-restart --directory=./app --pattern='*.py' --recursive -- celery -A app.celery_worker.worker worker --loglevel=info --pool=solo"
@@ -30,10 +30,10 @@ services:
       dockerfile: Dockerfile
     container_name: price_collector
     networks:
-      - moneylab_db
+      - ${NETWORK_NAME}
     environment:
-      - CONNECTION_ALIAS=${CONNECTION_ALIAS}
-      - MONGO_URI=${MONGO_URI}
+      - MONGO_BASE_URI=${MONGO_BASE_URI}
+      - STOCKDB_ALIAS=${STOCKDB_ALIAS}
       - CELERY_BROKER_URL=${CELERY_BROKER_URL}
       - CELERY_RESULT_BACKEND=${CELERY_RESULT_BACKEND}
       - COLLECTOR_IP=${COLLECTOR_IP}

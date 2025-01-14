@@ -4,7 +4,7 @@ from pymodm import fields, MongoModel
 from pymongo import ASCENDING
 from pymongo.operations import IndexModel
 from typing import Type, Union
-from yp_fin_utils.config.settings import CONNECTION_ALIAS
+from yp_fin_utils.config.settings import STOCKDB_ALIAS
 from yp_fin_utils.models.stock import Stock, StockKR, StockUS
 from yp_fin_utils.models.stock import find_stock_by_ticker
 from yp_fin_utils.models.ohlcv import Ohlcv
@@ -89,7 +89,7 @@ class CandleKR(Candle):
     stock = fields.ReferenceField(StockKR, required=True)
 
     class Meta:
-        connection_alias = CONNECTION_ALIAS
+        connection_alias = STOCKDB_ALIAS
         collection_name = 'candle_kr'
         indexes = [
             IndexModel([('stock', ASCENDING)], name='candle_kr_stock_index', unique=True)
@@ -109,7 +109,7 @@ class CandleUS(Candle):
     stock = fields.ReferenceField(StockUS, required=True)
 
     class Meta:
-        connection_alias = CONNECTION_ALIAS
+        connection_alias = STOCKDB_ALIAS
         collection_name = 'candle_us'
         indexes = [
             IndexModel([('stock', ASCENDING)], name='candle_us_stock_index', unique=True)
