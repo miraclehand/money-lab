@@ -1,0 +1,27 @@
+services:
+  price_collector:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: price-collector
+    networks:
+      - ${NETWORK_NAME}
+    environment:
+      - MONGO_BASE_URI=${MONGO_BASE_URI}
+      - STOCKDB_ALIAS=${STOCKDB_ALIAS}
+      - COLLECTOR_IP=${COLLECTOR_IP}
+      - COLLECTOR_PORT=${COLLECTOR_PORT}
+      - COLLECTOR_SERVER_NAME=${COLLECTOR_SERVER_NAME}
+      - SESSION_COOKIE_DOMAIN=${SESSION_COOKIE_DOMAIN}
+      - CELERY_BROKER_URL=${CELERY_BROKER_URL}
+      - CELERY_RESULT_BACKEND=${CELERY_RESULT_BACKEND}
+    volumes:
+      - .:/app
+    ports:
+      - "${COLLECTOR_PORT}:${COLLECTOR_PORT}"
+    command: python main.py
+
+networks:
+  moneylab_db:
+    external: true
+

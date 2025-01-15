@@ -1,27 +1,25 @@
 #!/bin/bash
 
-echo -e "Tmux Run database" | logger -t database
+USER=`whoami`
+WORKING_DIR="/home/$USER/Dev/MoneyLab"
+SESSION_NAMES=("database" "celery_worker" "price_collector" "disclosure_collector")
+WINDOW_NAME="MoneyLab"
+COMMAND="./run.sh"
+TMUX_CMD="/usr/bin/tmux"
 
-user=`whoami`
+start_tmux_session() {
+    local session_name=$1
+    local window_name=$2
+    local command=$3
 
-cd /home/$user/Dev/MoneyLab/database
-sudo -u $user /usr/bin/tmux new-session -s "database" -d -n "MoneyLab"
-sudo -u $user /usr/bin/tmux send-keys -t "database:MoneyLab" './run.sh' Enter
+    echo -e "Tmux Run $session_name" | logger -t "$session_name"
 
-cd -
+    cd "$WORKING_DIR/$session_name" || { echo "디렉토리 변경 실패: $WORKING_DIR/$session_name"; exit 1; }
 
-echo -e "Tmux Run price-collector" | logger -t price-collector
+    sudo -u "$USER" $TMUX_CMD new-session -s "$session_name" -d -n "$window_name"
+    sudo -u "$USER" $TMUX_CMD send-keys -t "$session_name:$window_name" "$command" Enter
+}
 
-cd /home/$user/Dev/MoneyLab/price-collector
-sudo -u $user /usr/bin/tmux new-session -s "price-collector" -d -n "MoneyLab"
-sudo -u $user /usr/bin/tmux send-keys -t "price-collector:MoneyLab" './run.sh' Enter
-
-cd -
-
-echo -e "Tmux Run disclosure-collector" | logger -t disclosure-collector
-
-cd /home/$user/Dev/MoneyLab/disclosure-collector
-sudo -u $user /usr/bin/tmux new-session -s "disclosure-collector" -d -n "MoneyLab"
-sudo -u $user /usr/bin/tmux send-keys -t "disclosure-collector:MoneyLab" './run.sh' Enter
-
-
+for session in "${SESSION_NAMES[@]}"; do
+    start_tmux_session "$session" "$WINDOW_NAME" "$COMMAND"
+done

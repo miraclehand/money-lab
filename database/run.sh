@@ -1,1 +1,1 @@
-sudo docker compose -f docker-compose.dev.yml --env-file ../.db.env up --build
+sudo docker compose -f docker-compose.dev.yml --env-file ../.env up --build

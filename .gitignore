@@ -1,2 +1,8 @@
 __pycache__/
 venv/
+.env
+github.key
+build/
+dist/
+*/*.egg-info/
+
