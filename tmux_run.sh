@@ -2,7 +2,7 @@
 
 USER=`whoami`
 WORKING_DIR="/home/$USER/Dev/MoneyLab"
-SESSION_NAMES=("database" "celery_worker" "price_collector" "disclosure_collector")
+SESSION_NAMES=("database" "celery_app" "price_collector" "disclosure_collector")
 WINDOW_NAME="MoneyLab"
 COMMAND="./run.sh"
 TMUX_CMD="/usr/bin/tmux"

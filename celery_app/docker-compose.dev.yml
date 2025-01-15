@@ -22,7 +22,7 @@ services:
     volumes:
       - .:/app
 
-  celery_worker:
+  worker:
     build:
       context: .
     container_name: celery-worker

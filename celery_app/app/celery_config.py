@@ -14,6 +14,8 @@ def create_celery(app_name=__name__):
         for path in task_modules if not path.endswith('__init__.py')
     ]
 
-    celery.autodiscover_tasks(task_modules)
-    celery.conf.result_backend = backend
+    celery.conf.update(
+        result_backend=backend,
+        broker_connection_retry_on_startup = True,
+    )
     return celery
