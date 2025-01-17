@@ -1,0 +1,18 @@
+services:
+  mongo:
+    image: mongo:latest
+    container_name: ${DB_CONTAINER_NAME}
+    ports:
+      - "${DB_PORT}:${DB_PORT}"
+    networks:
+      - ${DB_NETWORK_NAME}
+    volumes:
+      - db_data:/data/db
+
+networks:
+  moneylab-db-network:
+    name: ${DB_NETWORK_NAME}
+    driver: bridge
+
+volumes:
+  db_data:

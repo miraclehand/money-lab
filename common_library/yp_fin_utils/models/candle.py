@@ -5,8 +5,7 @@ from pymongo import ASCENDING
 from pymongo.operations import IndexModel
 from typing import Type, Union
 from yp_fin_utils.config.settings import STOCKDB_ALIAS
-from yp_fin_utils.models.stock import Stock, StockKR, StockUS
-from yp_fin_utils.models.stock import find_stock_by_ticker
+from yp_fin_utils.models.stock import Stock, KRStock, USStock
 from yp_fin_utils.models.ohlcv import Ohlcv
 
 
@@ -27,9 +26,9 @@ class Candle(MongoModel):
     @classmethod
     def find_by_stock_and_date(self, stock_instance, candle_model, start_date, end_date):
         if isinstance(start_date, str):
-            start_date = datetime.strptime(start_date, '%Y-%m-%d')
+            start_date = datetime.strptime(start_date.replace('-',''), '%Y%m%d')
         if isinstance(end_date, str):
-            end_date = datetime.strptime(end_date, '%Y-%m-%d')
+            end_date = datetime.strptime(end_date.replace('-',''), '%Y%m%d')
 
         return candle_model.objects.raw({
             'stock': stock_instance._id,
@@ -85,75 +84,41 @@ class Candle(MongoModel):
         }
 
 
-class CandleKR(Candle):
-    stock = fields.ReferenceField(StockKR, required=True)
+class KRCandle(Candle):
+    stock = fields.ReferenceField(KRStock, required=True)
 
     class Meta:
         connection_alias = STOCKDB_ALIAS
-        collection_name = 'candle_kr'
+        collection_name = 'kr_candle'
         indexes = [
-            IndexModel([('stock', ASCENDING)], name='candle_kr_stock_index', unique=True)
+            IndexModel([('stock', ASCENDING)], name='kr_candle_stock_index', unique=True)
         ]
 
 
     @classmethod
     def find_by_stock(self, ticker):
-        return super().find_by_stock(StockKR, ticker)
+        return super().find_by_stock(KRStock, ticker)
 
     @classmethod
     def find_by_stock_and_date(self, ticker, start_date, end_date):
-        stock_instance = StockKR.objects.raw({'ticker':ticker}).first()
+        stock_instance = KRStock.objects.raw({'ticker':ticker}).first()
         return super().find_by_stock_and_date(stock_instance, self, start_date, end_date)
 
-class CandleUS(Candle):
-    stock = fields.ReferenceField(StockUS, required=True)
+class USCandle(Candle):
+    stock = fields.ReferenceField(USStock, required=True)
 
     class Meta:
         connection_alias = STOCKDB_ALIAS
-        collection_name = 'candle_us'
+        collection_name = 'us_candle'
         indexes = [
-            IndexModel([('stock', ASCENDING)], name='candle_us_stock_index', unique=True)
+            IndexModel([('stock', ASCENDING)], name='us_candle_stock_index', unique=True)
         ]
 
     @classmethod
     def find_by_stock(self, ticker):
-        return super().find_by_stock(StockUS, ticker)
+        return super().find_by_stock(USStock, ticker)
 
     @classmethod
     def find_by_stock_and_date(self, ticker, start_date, end_date):
-        stock_instance = StockUS.objects.raw({'ticker':ticker}).first()
+        stock_instance = USStock.objects.raw({'ticker':ticker}).first()
         return super().find_by_stock_and_date(stock_instance, self, start_date, end_date)
-
-
-# Model selector
-CANDLE_MODELS = {
-    'kr': CandleKR,
-    'us': CandleUS
-}
-
-def get_candle_model(country: str) -> Type[Union[CandleKR, CandleUS]]:
-    candle_model = CANDLE_MODELS.get(country.lower())
-    if not candle_model:
-        raise ValueError(f"Unsupported country code: {country}")
-    return candle_model
-
-def find_candle_by_stock(country: str, stock: Stock):
-    if not stock:
-        return None
-
-    candle_model = get_candle_model(country)
-    candle_cursor = candle_model.objects.raw({'stock': stock._id})
-
-    if candle_cursor.count() > 0:
-        return candle_cursor.first()
-    else:
-        return None
-
-def find_candle_by_ticker(country: str, ticker: str):
-    candle_model = get_candle_model(country)
-    stock = find_stock_by_ticker(country, ticker)
-    if not stock:
-        return None
-
-    candle = find_candle_by_stock(country, stock)
-    return candle

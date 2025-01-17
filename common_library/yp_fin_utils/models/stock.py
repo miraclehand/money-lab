@@ -70,46 +70,24 @@ class Stock(MongoModel):
         }
 
 
-class StockKR(Stock):
+class KRStock(Stock):
     class Meta:
         connection_alias = STOCKDB_ALIAS
-        collection_name = 'stock_kr'
+        collection_name = 'kr_stock'
         indexes = [
-            IndexModel([('ticker', ASCENDING)], name='stock_kr_ticker_index', unique=True)
+            IndexModel([('ticker', ASCENDING)], name='kr_stock_ticker_index', unique=True)
         ]
 
     def __init__(self, newone=None, **kwargs):
         super().__init__(newone, **kwargs)
 
-class StockUS(Stock):
+class USStock(Stock):
     class Meta:
         connection_alias = STOCKDB_ALIAS
-        collection_name = 'stock_us'
+        collection_name = 'us_stock'
         indexes = [
-            IndexModel([('ticker', ASCENDING)], name='stock_us_ticker_index', unique=True)
+            IndexModel([('ticker', ASCENDING)], name='us_stock_ticker_index', unique=True)
         ]
 
     def __init__(self, newone=None, **kwargs):
         super().__init__(newone, **kwargs)
-
-
-# Model selector
-STOCK_MODELS = {
-    'kr': StockKR,
-    'us': StockUS
-}
-
-def get_stock_model(country: str) -> Type[Union[StockKR, StockUS]]:
-    stock_model = STOCK_MODELS.get(country.lower())
-    if not stock_model:
-        raise ValueError(f"Unsupported country code: {country}")
-    return stock_model
-
-def find_stock_by_ticker(country: str, ticker: str):
-    stock_model = get_stock_model(country)
-    stock_cursor = stock_model.objects.raw({'ticker': ticker})
-
-    if stock_cursor.count() > 0:
-        return stock_cursor.first()
-    else:
-        return None

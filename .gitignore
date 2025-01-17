@@ -4,5 +4,6 @@ venv/
 github.key
 build/
 dist/
+data/
 */*.egg-info/
 

@@ -1,8 +1,9 @@
 #!/bin/bash
 
+# 환경 변수 설정
 USER=`whoami`
 WORKING_DIR="/home/$USER/Dev/MoneyLab"
-SESSION_NAMES=("database" "celery_app" "price_collector" "disclosure_collector")
+SESSION_NAMES=("database_service" "redis_service" "price_collector_service" "disclosure_collector_service" "simulation_service")
 WINDOW_NAME="MoneyLab"
 COMMAND="./run.sh"
 TMUX_CMD="/usr/bin/tmux"

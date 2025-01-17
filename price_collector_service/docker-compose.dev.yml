@@ -1,0 +1,64 @@
+services:
+  price-collector:
+    build: .
+    container_name: price-collector
+    networks:
+      - ${DB_NETWORK_NAME}
+      - ${REDIS_NETWORK_NAME}
+    environment:
+      - MONGO_BASE_URI=${MONGO_BASE_URI}
+      - STOCKDB_ALIAS=${STOCKDB_ALIAS}
+      - COLLECTOR_IP=${COLLECTOR_IP}
+      - COLLECTOR_PORT=${COLLECTOR_PORT}
+      - COLLECTOR_SERVER_NAME=${COLLECTOR_SERVER_NAME}
+      - SESSION_COOKIE_DOMAIN=${SESSION_COOKIE_DOMAIN}
+      - CELERY_BROKER_URL=${CELERY_BROKER_URL}
+      - CELERY_RESULT_BACKEND=${CELERY_RESULT_BACKEND}
+    volumes:
+      - .:/app
+    ports:
+      - "${COLLECTOR_PORT}:${COLLECTOR_PORT}"
+    command: python main.py
+
+  price-collector-worker:
+    build: .
+    environment:
+      - MONGO_BASE_URI=${MONGO_BASE_URI}
+      - STOCKDB_ALIAS=${STOCKDB_ALIAS}
+      - CELERY_BROKER_URL=${CELERY_BROKER_URL}
+      - CELERY_RESULT_BACKEND=${CELERY_RESULT_BACKEND}
+    depends_on:
+      - price-collector
+    command: >
+      bash -c "watchmedo auto-restart --directory=./app --pattern='*.py' --recursive
+      -- celery -A app.celery_app.worker worker
+      --loglevel=info
+      --pool=solo
+      2>&1 | tee -a /app/data/logs/celery_work.log"
+    volumes:
+      - .:/app
+    networks:
+      - ${DB_NETWORK_NAME}
+      - ${REDIS_NETWORK_NAME}
+
+  price-collector-beat:
+    build:
+      context: .
+    environment:
+      - CELERY_BROKER_URL=${CELERY_BROKER_URL}
+      - CELERY_RESULT_BACKEND=${CELERY_RESULT_BACKEND}
+    depends_on:
+      - price-collector
+    command: celery -A app.celery_app.beat beat --loglevel=info
+    networks:
+      - ${DB_NETWORK_NAME}
+      - ${REDIS_NETWORK_NAME}
+    volumes:
+      - .:/app
+
+networks:
+  redis-network:
+    external: true
+  moneylab-db-network:
+    external: true
+

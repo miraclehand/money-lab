@@ -6,6 +6,7 @@ from pymongo.operations import IndexModel
 from yp_fin_utils.models.stock import Stock
 from yp_fin_utils.models.candle import Candle
 from yp_fin_utils.config.settings import STOCKDB_ALIAS
+from yp_fin_utils.utils.utils import formatted_date
 
 
 class Disclosure(MongoModel):
@@ -44,23 +45,23 @@ class DividendDisclosure(Disclosure):
         self.stock = stock
         self.candle = candle
 
-        self.recept_dt = newone.get('rcept_dt', '')
+        self.recept_dt = formatted_date(newone.get('rcept_dt', ''))
         self.recept_no = newone.get('rcept_no', '')
         self.recept_nm = newone.get('report_nm', '')
         self.dividend_type = newone.get('dividend_type', '')
         self.dividend_method = newone.get('dividend_method', '')
         self.asset_details = newone.get('asset_details', '')
         self.total_dividend_amount = newone.get('total_dividend_amount', '')
-        self.dividend_date = newone.get('dividend_date', '')
-        self.payment_date = newone.get('payment_date', '')
+        self.dividend_date = formatted_date(newone.get('dividend_date', ''))
+        self.payment_date = formatted_date(newone.get('payment_date', ''))
         self.updated_at = datetime.now().date()
 
-class DividendDisclosureKR(DividendDisclosure):
+class KRDividendDisclosure(DividendDisclosure):
     class Meta:
         connection_alias = STOCKDB_ALIAS
-        collection_name = 'dividend_disclosure_kr'
+        collection_name = 'kr_dividend_disclosure'
         indexes = [
-            IndexModel([('stock', ASCENDING), ('recept_dt', ASCENDING)], name='dividend_disclosure_kr_index')
+            IndexModel([('stock', ASCENDING), ('recept_dt', ASCENDING)], name='kr_dividend_disclosure_index')
         ]
 
     def __init__(self, country=None, stock=None, candle=None, newone=None, **kwargs):

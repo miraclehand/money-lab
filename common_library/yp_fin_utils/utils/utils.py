@@ -33,3 +33,16 @@ def disassemble_hangul(value):
 
     return ''.join(result)
 
+def formatted_date(date_str: str):
+    if not date_str:
+        return None
+
+    cleaned_date = date_str.replace('-','').replace('.','').replace('/','')
+    return f"{cleaned_date[:4]}-{cleaned_date[4:6]}-{cleaned_date[6:]}"
+
+def is_number(value: str):
+    if not value:
+        return False 
+
+    cleaned_value = value.replace(',', '').replace('-', '').replace('.','')
+    return cleaned_value.isdigit()
