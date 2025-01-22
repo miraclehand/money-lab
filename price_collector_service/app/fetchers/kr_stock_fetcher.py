@@ -92,6 +92,9 @@ class KRStockFetcher(StockFetcher):
                 for stock_data in stock_data_list:
                     if not stock_data:
                         continue
+
+                    if ticker and ticker != stock_data.get('ticker'):
+                        continue
                     upsert_ticker = ticker or stock_data.get('ticker')
                     self.stock_model.objects.raw({'ticker': upsert_ticker}).update({
                         '$set': {'country' : stock_data.get('country'),

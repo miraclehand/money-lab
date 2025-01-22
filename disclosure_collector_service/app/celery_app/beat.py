@@ -1,7 +1,6 @@
 import os
 from celery import Celery
 from celery.schedules import crontab
-from yp_fin_utils.utils.logging import configure_logging
 
 
 def create_celery(app_name=__name__):
@@ -17,14 +16,16 @@ def create_celery(app_name=__name__):
         enable_utc=False,
         broker_connection_retry_on_startup = True,
         beat_schedule = {
-            'put-candle-data-at-4:30pm': {
-                'task': 'price_collector_app.tasks.data_sync.candle_task.sync_candle_data',
-                'schedule': crontab(hour=4, minute=30),
+            'put-candle-data-at-3:00pm': {
+                'task': 'app.tasks.data_sync.disclosure_task.sync_disclosure_data',
+                'schedule': crontab(hour=15, minute=0),
                 'args': ['kr'],
+                'options': {
+                    'queue': 'disclosure_queue'
+                }
             },
         },
     )
     return celery
 
 celery = create_celery()
-configure_logging('data/logs/app.log-beat')

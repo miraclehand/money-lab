@@ -8,39 +8,53 @@ services:
     environment:
       - MONGO_BASE_URI=${MONGO_BASE_URI}
       - STOCKDB_ALIAS=${STOCKDB_ALIAS}
-      - DART_API_KEY=${DART_API_KEY}
-      - DISCLOSURE_IP=${DISCLOSURE_IP}
-      - DISCLOSURE_PORT=${DISCLOSURE_PORT}
       - CELERY_BROKER_URL=${CELERY_BROKER_URL}
       - CELERY_RESULT_BACKEND=${CELERY_RESULT_BACKEND}
+      - DISCLOSURE_IP=${DISCLOSURE_IP}
+      - DISCLOSURE_PORT=${DISCLOSURE_PORT}
+      - DART_API_KEY=${DART_API_KEY}
     command: python main.py
     #command: gunicorn -w 4 -b 0.0.0.0:${DISCLOSURE_PORT} --reload --log-level error --access-logfile '-' --error-logfile '-'  app:run_app
-    volumes:
-      - .:/app
     ports:
       - "${DISCLOSURE_PORT}:${DISCLOSURE_PORT}"
+    volumes:
+      - .:/app
 
   disclosure-collector-worker:
     build: .
-    command: >
-      bash -c "watchmedo auto-restart --directory=./app --pattern='*.py' --recursive
-      -- celery -A app.celery_app.worker worker
-      --loglevel=info
-      --pool=solo
-      2>&1 | tee -a /app/data/logs/celery_work.log"
     environment:
       - MONGO_BASE_URI=${MONGO_BASE_URI}
       - STOCKDB_ALIAS=${STOCKDB_ALIAS}
       - DART_API_KEY=${DART_API_KEY}
       - CELERY_BROKER_URL=${CELERY_BROKER_URL}
       - CELERY_RESULT_BACKEND=${CELERY_RESULT_BACKEND}
+    command: >
+      bash -c "watchmedo auto-restart --directory=./app --pattern='*.py' --recursive
+      -- celery -A app.celery_app.worker worker
+      --loglevel=info
+      --pool=solo
+      2>&1 | tee -a /app/data/logs/celery_work.log"
     depends_on:
       - disclosure-collector
-    volumes:
-      - .:/app
     networks:
       - ${DB_NETWORK_NAME}
       - ${REDIS_NETWORK_NAME}
+    volumes:
+      - .:/app
+
+  disclosure-collector-beat:
+    build: .
+    environment:
+      - CELERY_BROKER_URL=${CELERY_BROKER_URL}
+      - CELERY_RESULT_BACKEND=${CELERY_RESULT_BACKEND}
+    command: celery -A app.celery_app.beat beat --loglevel=info
+    depends_on:
+      - disclosure-collector
+    networks:
+      - ${DB_NETWORK_NAME}
+      - ${REDIS_NETWORK_NAME}
+    volumes:
+      - .:/app
 
 networks:
   redis-network:

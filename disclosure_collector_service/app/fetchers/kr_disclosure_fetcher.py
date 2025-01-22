@@ -28,12 +28,12 @@ class KRDisclosureFetcher(DisclosureFetcher):
         page_no = 1
 
         if isinstance(start_date, datetime):
-            start_date_str = start_date.strftime('%Y%m%d'),
+            start_date_str = start_date.strftime('%Y%m%d')
         else:
             start_date_str = start_date.replace('-','')
 
         if isinstance(end_date, datetime):
-            end_date_str = end_date.strftime('%Y%m%d'),
+            end_date_str = end_date.strftime('%Y%m%d')
         else:
             end_date_str = end_date.replace('-','')
 

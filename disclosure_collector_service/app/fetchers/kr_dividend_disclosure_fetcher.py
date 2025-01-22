@@ -4,10 +4,11 @@ import re
 import zipfile
 import chardet
 import dart_fss
+import html
 from typing import Optional
 from datetime import datetime, timedelta
 from yp_fin_utils.models import MarketModelFactory
-from yp_fin_utils.parsers.parsers import extract_value_from_xml
+from yp_fin_utils.parsers.parsers import extract_value_from_html
 from yp_fin_utils.utils.utils import is_number, formatted_date
 from app.fetchers.kr_disclosure_fetcher import KRDisclosureFetcher
 
@@ -78,20 +79,21 @@ class KRDividendDisclosureFetcher(KRDisclosureFetcher):
         with zipfile.ZipFile(zip_path, 'r') as zip_ref:
             for file_name in zip_ref.namelist():
                 with zip_ref.open(file_name) as file:
-                    html = file.read()
-                    encoding_info = chardet.detect(html)
-                    decoded_html = html.decode(encoding_info['encoding'])
-                    return re.sub(r'<meta[^>]*>|<br[^>]*>', '', decoded_html)
+                    html_text = file.read()
+                    encoding_info = chardet.detect(html_text)
+                    decoded_html = html_text.decode(encoding_info['encoding'])
+                    unescaped_html = html.unescape(decoded_html)
+                    return re.sub(r'<meta[^>]*>|<br[^>]*>', '', unescaped_html)
         return None
 
     def _extract_dividend_info(self, cleaned_xml: str) -> dict:
         return {
-            'dividend_type': extract_value_from_xml(cleaned_xml, "배당구분"),
-            'dividend_method': extract_value_from_xml(cleaned_xml, "배당종류"),
-            'asset_details': extract_value_from_xml(cleaned_xml, "상세내역"),
-            'total_dividend_amount': self._parse_amount(extract_value_from_xml(cleaned_xml, "배당금총액")),
-            'dividend_date': extract_value_from_xml(cleaned_xml, "배당기준일"),
-            'payment_date': extract_value_from_xml(cleaned_xml, "배당금지급 예정일자"),
+            'dividend_type': extract_value_from_html(cleaned_xml, "배당구분"),
+            'dividend_method': extract_value_from_html(cleaned_xml, "배당종류"),
+            'asset_details': extract_value_from_html(cleaned_xml, "상세내역"),
+            'total_dividend_amount': self._parse_amount(extract_value_from_html(cleaned_xml, "배당금총액")),
+            'record_date': extract_value_from_html(cleaned_xml, "배당기준일") or extract_value_from_html(cleaned_xml, "기준일"),
+            'payment_date': extract_value_from_html(cleaned_xml, "배당금지급 예정일자"),
         }
 
     def _parse_amount(self, amount: str):

@@ -8,11 +8,7 @@ logger = logging.getLogger(__name__)
 
 @celery.task
 def refresh_candle_data(country, ticker=None):
-    candle_model = MarketModelFactory.get_model('CANDLE', country)
-    stock_instance = candle_model.find_by_stock(ticker)
-
-    query = {'stock': stock_instance._id} if stock_instance else {}
-    candle_model.objects.raw(query).delete()
+    delete_candle_data(country, ticker)
 
     candle_fetcher = FetcherFactory.create_fetcher('CANDLE', country)
     candle_fetcher.sync_data(ticker)
@@ -21,16 +17,13 @@ def refresh_candle_data(country, ticker=None):
 
 @celery.task
 def sync_candle_data(country, ticker=None):
-    logger.info(f"put_candle_data {country}, {ticker}")
     candle_model = MarketModelFactory.get_model('CANDLE', country)
-    stock_instance = candle_model.find_by_stock(ticker)
 
     days = 14 # 2weeks
     candle_fetcher = FetcherFactory.create_fetcher('CANDLE', country)
     candle_fetcher.sync_data(ticker, days)
 
     stock_model = MarketModelFactory.get_model('STOCK', country)
-
     stocks = stock_model.objects.raw({'new_adj_close':True})
 
     total_stocks = stocks.count()
@@ -47,10 +40,9 @@ def sync_candle_data(country, ticker=None):
 @celery.task
 def delete_candle_data(country, ticker=None, start_date=None, end_date=None):
     candle_model = MarketModelFactory.get_model('CANDLE', country)
-    stock_instance = candle_model.find_by_stock(ticker)
+    stock_instance = MarketModelFactory.find_stock_by_ticker(country, ticker)
 
     query = {'stock': stock_instance._id} if stock_instance else {}
     candle_model.objects.raw(query).delete()
 
     return {'task':'candle delete'}, 201
-

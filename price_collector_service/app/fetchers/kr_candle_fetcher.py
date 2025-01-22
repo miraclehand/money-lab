@@ -118,7 +118,7 @@ class KRCandleFetcher(CandleFetcher):
             candle.save()
         except DoesNotExist:
             candle = self.candle_model(
-                stock=stock_instance,
+                stock=stock_instance._id,
                 ohlcvs=[self.ohlcv_model(ohlcv) for ohlcv in ohlcv_data]
             )
             candle.save()

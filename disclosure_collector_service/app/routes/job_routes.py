@@ -6,8 +6,9 @@ from app.config.settings import CurrentConfig
 job_routes = Blueprint('job_routes', __name__)
 celery = Celery('disclosure_collector', broker=CurrentConfig.CELERY_BROKER_URL, backend=CurrentConfig.CELERY_RESULT_BACKEND)
 
+@job_routes.route('/jobs/disclosure/<string:country>', methods=['POST', 'PUT', 'DELETE'])
 @job_routes.route('/jobs/disclosure/<string:country>/<string:start_date>/<string:end_date>', methods=['POST', 'PUT', 'DELETE'])
-def manage_disclosure_data_route(country, start_date, end_date):
+def manage_disclosure_data_route(country, start_date=None, end_date=None):
     disclosure_type = 'DIVIDEND'
     queue = 'disclosure_queue'
 

@@ -17,10 +17,12 @@ def create_celery(app_name=__name__):
         broker_connection_retry_on_startup = True,
         beat_schedule = {
             'put-candle-data-at-4:30pm': {
-                #'task': 'app.tasks.data_sync.candle_task.sync_candle_data',
-                'task': 'app.tasks.data_sync.stock_task.sync_stock_data',
-                'schedule': crontab(hour=16, minute=58),
+                'task': 'app.tasks.data_sync.candle_task.sync_candle_data',
+                'schedule': crontab(hour=16, minute=30),
                 'args': ['kr'],
+                'options': {
+                    'queue': 'price_queue'
+                }
             },
         },
     )

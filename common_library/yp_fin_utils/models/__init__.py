@@ -1,3 +1,4 @@
+from datetime import datetime
 from yp_fin_utils.models.stock  import KRStock,  USStock
 from yp_fin_utils.models.candle import KRCandle, USCandle
 from yp_fin_utils.models.ohlcv import Ohlcv
@@ -55,21 +56,39 @@ class MarketModelFactory:
 
     @staticmethod
     def find_candle_by_ticker(country: str, ticker: str):
-        candle_model = CANDLE_MODELS.get(country)
-        if not candle_model:
-            raise ValueError(f"Unsupported country code: {country}")
-
-        stock = find_stock_by_ticker(country, ticker)
-        if not stock:
-            return None
-
-        candle = find_candle_by_stock(country, stock)
-        return candle
-
-    @staticmethod
-    def find_candle_by_ticker(country: str, ticker: str):
         stock = MarketModelFactory.find_stock_by_ticker(country, ticker)
         if not stock:
             return None
 
         return MarketModelFactory.find_related_candle_by_stock(country, stock)
+
+    @staticmethod
+    def find_candle_by_ticker_and_date_range(country: str, ticker: str, start_date, end_date):
+        if isinstance(start_date, str):
+            start_date = datetime.strptime(start_date.replace('-',''), '%Y%m%d')
+        if isinstance(end_date, str):
+            end_date = datetime.strptime(end_date.replace('-',''), '%Y%m%d')
+
+        candle_model = MarketModelFactory.get_model('CANDLE', country)
+        if not candle_model:
+            raise ValueError(f"Unsupported country code: {country}")
+
+        stock_instance = MarketModelFactory.find_stock_by_ticker(country, ticker)
+
+        return candle_model.objects.raw({
+            'stock': stock_instance._id,
+        }).project({
+            'stock': 1,  # stock 필드 유지
+            'ohlcvs': {  # ohlcvs 배열 필터링
+                '$filter': {
+                    'input': '$ohlcvs',
+                    'as': 'item',
+                    'cond': {
+                        '$and': [
+                            { '$gte': ['$$item.date', start_date] },
+                            { '$lte': ['$$item.date', end_date] }
+                        ]
+                    }
+                }
+            }
+        })

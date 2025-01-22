@@ -1,3 +1,6 @@
+from datetime import datetime
+
+
 # 한글 초성, 중성, 종성 리스트
 F = ['ㄱ', 'ㄲ', 'ㄴ', 'ㄷ', 'ㄸ', 'ㄹ', 'ㅁ',
      'ㅂ', 'ㅃ', 'ㅅ', 'ㅆ', 'ㅇ', 'ㅈ', 'ㅉ',
@@ -33,8 +36,12 @@ def disassemble_hangul(value):
 
     return ''.join(result)
 
-def formatted_date(date_str: str):
-    if not date_str:
+def formatted_date(date):
+    if isinstance(date, str):
+        date_str = date
+    elif isinstance(date, datetime):
+        date_str = date.strftime('%Y%m%d')
+    else:
         return None
 
     cleaned_date = date_str.replace('-','').replace('.','').replace('/','')

@@ -10,13 +10,8 @@ logger = logging.getLogger(__name__)
 
 @celery.task
 def refresh_stock_data(country, ticker=None):
-    stock_model = MarketModelFactory.get_model('STOCK', country)
-
-    query = {'ticker': ticker} if ticker else {}
-    stock_model.objects.raw(query).delete()
-
-    stock_fetcher = FetcherFactory.create_fetcher('STOCK', country)
-    stock_fetcher.sync_data(ticker)
+    delete_stock_data(country, ticker)
+    sync_stock_data(country, ticker)
 
     return {'task':'stock post'}, 201
 

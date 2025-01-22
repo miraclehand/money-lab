@@ -16,37 +16,21 @@ class Candle(MongoModel):
     class Meta:
         abstract = True
 
-    @classmethod
-    def find_by_stock(self, stock_model, ticker):
-        try:
-            return stock_model.objects.raw({'ticker':ticker}).first()
-        except Exception as e:
-            return None
+    def calculate_average_weighted_close(self, target_date, days=20):
+        if isinstance(target_date, str):
+            target_date = datetime.strptime(target_date.replace('-', ''), '%Y%m%d')
 
-    @classmethod
-    def find_by_stock_and_date(self, stock_instance, candle_model, start_date, end_date):
-        if isinstance(start_date, str):
-            start_date = datetime.strptime(start_date.replace('-',''), '%Y%m%d')
-        if isinstance(end_date, str):
-            end_date = datetime.strptime(end_date.replace('-',''), '%Y%m%d')
+        filtered_ohlcvs = [ohlcv for ohlcv in self.ohlcvs if ohlcv.date <= target_date]
+        recent_ohlcvs = filtered_ohlcvs[-days:]
+        weighted_sum = sum(ohlcv.close * ohlcv.volume for ohlcv in recent_ohlcvs)
+        return weighted_sum / days if filtered_ohlcvs else 0.0
 
-        return candle_model.objects.raw({
-            'stock': stock_instance._id,
-        }).project({
-            'stock': 1,  # stock 필드 유지
-            'ohlcvs': {  # ohlcvs 배열 필터링
-                '$filter': {
-                    'input': '$ohlcvs',
-                    'as': 'item',
-                    'cond': {
-                        '$and': [
-                            { '$gte': ['$$item.date', start_date] },
-                            { '$lte': ['$$item.date', end_date] }
-                        ]
-                    }
-                }
-            }
-        })
+    def get_ohlcv(self, date):
+        if isinstance(date, str):
+            date = datetime.strptime(date.replace('-',''), '%Y%m%d')
+
+        ohlcv = [o for o in self.ohlcvs if o.date == date]
+        return ohlcv[0]
 
     def update_ohlcv_with_adjustments(self, ohlcv_data_fetched):
         has_price_adjustment = False
@@ -91,18 +75,62 @@ class KRCandle(Candle):
         connection_alias = STOCKDB_ALIAS
         collection_name = 'kr_candle'
         indexes = [
-            IndexModel([('stock', ASCENDING)], name='kr_candle_stock_index', unique=True)
+            IndexModel([('stock', ASCENDING)], name='kr_candle_stock_index', unique=True),
+            IndexModel([('stock', ASCENDING), ('ohlcvs.date', ASCENDING)], name='kr_candle_ohlcv_index', unique=True)
+        ]
+    def calculate_average_weighted_close__(self, candle_model, target_date: Union[str, datetime], days: int = 20) -> float:
+        if isinstance(target_date, str):
+            target_date = datetime.strptime(target_date.replace('-', ''), '%Y%m%d')
+
+        pipeline = [
+            {
+                '$match': {
+                    '_id': self._id
+                }
+            },
+            {
+                '$project': {
+                    'ohlcvs': {
+                        '$filter': {
+                            'input': '$ohlcvs',
+                            'as': 'ohlcv',
+                            'cond': {'$lte': ['$$ohlcv.date', target_date]}
+                        }
+                    }
+                }
+            },
+            {
+                '$project': {
+                    'last_n_ohlcvs': {
+                        '$slice': ['$ohlcvs', -days]
+                    }
+                }
+            },
+            {
+                '$unwind': '$last_n_ohlcvs'
+            },
+            {
+                '$group': {
+                    '_id': None,
+                    'weighted_sum': {
+                        '$sum': {
+                            '$multiply': ['$last_n_ohlcvs.close', '$last_n_ohlcvs.volume']
+                        }
+                    },
+                    'count': {'$sum': 1}
+                }
+            }
         ]
 
-
-    @classmethod
-    def find_by_stock(self, ticker):
-        return super().find_by_stock(KRStock, ticker)
-
-    @classmethod
-    def find_by_stock_and_date(self, ticker, start_date, end_date):
-        stock_instance = KRStock.objects.raw({'ticker':ticker}).first()
-        return super().find_by_stock_and_date(stock_instance, self, start_date, end_date)
+        result = list(self.objects.aggregate(pipeline))
+        
+        if not result:
+            return 0.0
+            
+        weighted_sum = result[0]['weighted_sum']
+        count = result[0]['count']
+        
+        return weighted_sum / days if count > 0 else 0.0
 
 class USCandle(Candle):
     stock = fields.ReferenceField(USStock, required=True)
@@ -111,14 +139,6 @@ class USCandle(Candle):
         connection_alias = STOCKDB_ALIAS
         collection_name = 'us_candle'
         indexes = [
-            IndexModel([('stock', ASCENDING)], name='us_candle_stock_index', unique=True)
+            IndexModel([('stock', ASCENDING)], name='us_candle_stock_index', unique=True),
+            IndexModel([('stock', ASCENDING), ('ohlcvs.date', ASCENDING)], name='us_candle_ohlcv_index', unique=True)
         ]
-
-    @classmethod
-    def find_by_stock(self, ticker):
-        return super().find_by_stock(USStock, ticker)
-
-    @classmethod
-    def find_by_stock_and_date(self, ticker, start_date, end_date):
-        stock_instance = USStock.objects.raw({'ticker':ticker}).first()
-        return super().find_by_stock_and_date(stock_instance, self, start_date, end_date)
